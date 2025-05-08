@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>库存管理系统</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 10px; }
+        #scanner-container { display:none; }
+        #interactive.viewport video { width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+<h1 style="text-align:center;">滤棒库存管理</h1>
+<button onclick="startScanner()" style="display:block;margin:auto;">开始扫描</button>
+<div id="result" style="margin-top:20px;text-align:center;"></div>
+<div id="scanner-container">
+    <div id="interactive" class="viewport"></div>
+</div>
+
+<script>
+function startScanner() {
+    document.querySelector('button').style.display = 'none';
+    document.getElementById('scanner-container').style.display = 'block';
+
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: document.querySelector('#interactive'),
+            constraints: {
+                width: {min: 640},
+                height: {min: 480},
+                facingMode: "environment", // 使用后置摄像头
+                aspectRatio: {min: 1, max: 2}
+            },
+        },
+        decoder: {
+            readers: ["code_128_reader"]
+        }
+    }, function(err) {
+        if (err) {
+            console.error("初始化失败", err);
+            alert('无法启动摄像头，请检查权限设置');
+            return;
+        }
+        console.log("初始化完成，开始扫描...");
+        Quagga.start();
+    });
+
+    Quagga.onDetected(function(result) {
+        var code = result.codeResult.code;
+        document.getElementById('result').innerText = '扫描到的产品ID: ' + code;
+        // 发送产品ID到服务器获取更多信息
+        fetch('/api/get_product_info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({product_id: code})
+        }).then(response => response.json())
+          .then(data => {
+              alert('产品信息: ' + JSON.stringify(data));
+          });
+        Quagga.stop();
+        document.querySelector('button').style.display = 'block';
+        document.getElementById('scanner-container').style.display = 'none';
+    });
+}
+</script>
+</body>
+</html>
