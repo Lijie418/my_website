@@ -33,7 +33,7 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            background-color: #007bff;
+            background-color: #ff0055;
             color: white;
         }
         button:hover {
@@ -47,56 +47,48 @@
     </style>
 </head>
 <body>
+    <div class="scanner-container">
+        <video id="qr-video"></video>
+        <button id="scan-button">Start Scan</button>  <!-- 这是扫描按钮 -->
+        <div id="result"></div>
+    </div>
 
-<div class="scanner-container">
-    <video id="qr-video"></video>
-    <button id="scan-button">Start Scan</button>
-    <div id="result"></div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
-<script>
-    document.getElementById('scan-button').addEventListener('click', function () {
-        const qrCodeDiv = document.getElementById('qr-video');
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+    <script>
+        document.getElementById('scan-button').addEventListener('click', function() {
         const resultDiv = document.getElementById('result');
-
-        // Create an instance of Html5QrcodeScanner.
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-video", { fps: 10, qrbox: 250 });
         
-        html5QrcodeScanner.render(successCallback, errorCallback);
+        // 创建扫码器实例
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-video", 
+            { 
+                fps: 10, 
+                qrbox: 250,
+                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+            }
+        );
 
-        function successCallback(decodedText, decodedResult) {
-            // Handle on success condition with the decoded message.
-            console.log(`Scan result: ${decodedText}`, decodedResult);
-            resultDiv.innerText = `Scanned Result: ${decodedText}`;
+        // 成功回调
+        function onScanSuccess(decodedText) {
+            resultDiv.innerHTML = `
+                <p style="color:green">扫描成功!</p>
+                <p>二维码内容: ${decodedText}</p>
+                <button onclick="location.reload()">重新扫描</button>
+            `;
             html5QrcodeScanner.clear();
         }
 
-        function errorCallback(errorMessage) {
-            // Handle error conditions here.
-            if (errorMessage && errorMessage.includes("NotAllowedError")) {
-                resultDiv.innerText = "Camera permission denied.";
-            } else if (errorMessage && errorMessage.includes("NotFoundError")) {
-                resultDiv.innerText = "No camera found.";
-            } else if (errorMessage && errorMessage.includes("NotSupportedError")) {
-                resultDiv.innerText = "Secure context required (HTTPS, localhost).";
-            } else if (errorMessage && errorMessage.includes("NotReadableError")) {
-                resultDiv.innerText = "Camera already in use.";
-            } else if (errorMessage && errorMessage.includes("OverconstrainedError")) {
-                resultDiv.innerText = "Installed cameras are not suitable.";
-            } else if (errorMessage && errorMessage.includes("StreamApiNotSupportedError")) {
-                resultDiv.innerText = "Stream API is not supported in this browser.";
-            } else if (errorMessage && errorMessage.includes("InsecureContextError")) {
-                resultDiv.innerText = "Application must be served over HTTPS.";
-            } else {
-                // Unknown error
-                console.error(errorMessage);
-                resultDiv.innerText = "Unknown error occurred.";
-            }
+        // 失败回调
+        function onScanFailure(error) {
+            resultDiv.innerHTML = `
+                <p style="color:red">扫描失败: ${error}</p>
+                <button onclick="location.reload()">重试</button>
+            `;
         }
-    });
-</script>
 
+        // 开始扫描
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    });
+    </script>
 </body>
 </html>
