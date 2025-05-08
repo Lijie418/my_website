@@ -33,7 +33,7 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            background-color: #ff0055;
+            background-color: #007bff;
             color: white;
         }
         button:hover {
@@ -47,48 +47,69 @@
     </style>
 </head>
 <body>
-    <div class="scanner-container">
-        <video id="qr-video"></video>
-        <button id="scan-button">Start Scan</button>  <!-- 这是扫描按钮 -->
-        <div id="result"></div>
-    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
-    <script>
-        document.getElementById('scan-button').addEventListener('click', function() {
+<div class="scanner-container">
+    <video id="qr-video"></video>
+    <button id="scan-button">Start Scan</button>
+    <div id="result"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+<script>
+    document.getElementById('scan-button').addEventListener('click', function () {
+        const qrCodeDiv = document.getElementById('qr-video');
         const resultDiv = document.getElementById('result');
-        
-        // 创建扫码器实例
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-video", 
-            { 
-                fps: 10, 
-                qrbox: 250,
-                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-            }
-        );
 
-        // 成功回调
-        function onScanSuccess(decodedText) {
-            resultDiv.innerHTML = `
-                <p style="color:green">扫描成功!</p>
-                <p>二维码内容: ${decodedText}</p>
-                <button onclick="location.reload()">重新扫描</button>
-            `;
-            html5QrcodeScanner.clear();
+        // Create an instance of Html5Qrcode.
+        let html5Qrcode = new Html5Qrcode("qr-video");
+
+        // Function to handle successful scan
+        function onScanSuccess(decodedText, decodedResult) {
+            // Handle on success condition with the decoded message.
+            console.log(`Scan result: ${decodedText}`, decodedResult);
+            resultDiv.innerText = `Scanned Result: ${decodedText}`;
+            // Stop scanning after a successful scan
+            html5Qrcode.stop().then((ignore) => {
+                // QR Code successfully stopped.
+            }).catch((err) => {
+                // Failed to stop the scanner
+                console.error(err);
+            });
         }
 
-        // 失败回调
+        // Function to handle errors during scanning
         function onScanFailure(error) {
-            resultDiv.innerHTML = `
-                <p style="color:red">扫描失败: ${error}</p>
-                <button onclick="location.reload()">重试</button>
-            `;
+            // Handle scan failure, usually better to ignore and keep scanning.
+            // For example:
+            // console.warn(`Code scan error = ${error}`);
         }
 
-        // 开始扫描
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        // Start scanning
+        html5Qrcode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 })
+            .then((msg) => {
+                // Success callback after starting the scanner
+                console.log(`Started scanning.`);
+            })
+            .catch((err) => {
+                // Error callback when something goes wrong
+                console.error(`Error starting scanner: ${err}`);
+                resultDiv.innerText = `Error starting scanner: ${err}`;
+            });
+
+        // Optional - Add a timeout to stop scanning after a certain period
+        setTimeout(() => {
+            html5Qrcode.stop().then((ignore) => {
+                // QR Code successfully stopped.
+            }).catch((err) => {
+                // Failed to stop the scanner
+                console.error(err);
+            });
+        }, 10000); // Stops scanning after 10 seconds
     });
-    </script>
+</script>
+
 </body>
 </html>
+
+
+
