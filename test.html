@@ -3,113 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner</title>
+    <title>二维码扫描</title>
+    <!-- 引入 Html5-QRCode 库 -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f9;
-        }
-        .scanner-container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        video {
-            width: 300px;
-            border: 2px solid #ccc;
-            border-radius: 8px;
-        }
-        button {
-            margin-top: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #333;
-        }
+        #qr-reader { width: 100%; max-width: 400px; margin: 20px auto; }
+        #scan-button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 18px; }
     </style>
 </head>
 <body>
+    <!-- 1. HTML 结构 -->
+    <div id="qr-reader"></div>
+    <button id="scan-button">开始扫描</button>
+    <div id="result">等待扫描结果...</div>
 
-<div class="scanner-container">
-    <video id="qr-video"></video>
-    <button id="scan-button">Start Scan</button>
-    <div id="result"></div>
-</div>
+    <!-- 2. JavaScript 逻辑 -->
+    <script>
+        // 获取 DOM 元素
+        const scanButton = document.getElementById("scan-button");
+        const resultDiv = document.getElementById("result");
+        
+        // 初始化扫描器
+        const html5QrCode = new Html5Qrcode("qr-reader");
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
-<script>
-    document.getElementById('scan-button').addEventListener('click', function () {
-        const qrCodeDiv = document.getElementById('qr-video');
-        const resultDiv = document.getElementById('result');
-
-        // Create an instance of Html5Qrcode.
-        let html5Qrcode = new Html5Qrcode("qr-video");
-
-        // Function to handle successful scan
-        function onScanSuccess(decodedText, decodedResult) {
-            // Handle on success condition with the decoded message.
-            console.log(`Scan result: ${decodedText}`, decodedResult);
-            resultDiv.innerText = `Scanned Result: ${decodedText}`;
-            // Stop scanning after a successful scan
-            html5Qrcode.stop().then((ignore) => {
-                // QR Code successfully stopped.
-            }).catch((err) => {
-                // Failed to stop the scanner
-                console.error(err);
-            });
-        }
-
-        // Function to handle errors during scanning
-        function onScanFailure(error) {
-            // Handle scan failure, usually better to ignore and keep scanning.
-            // For example:
-            // console.warn(`Code scan error = ${error}`);
-        }
-
-        // Start scanning
-        html5Qrcode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 })
-            .then((msg) => {
-                // Success callback after starting the scanner
-                console.log(`Started scanning.`);
-            })
-            .catch((err) => {
-                // Error callback when something goes wrong
-                console.error(`Error starting scanner: ${err}`);
-                resultDiv.innerText = `Error starting scanner: ${err}`;
-            });
-
-        // Optional - Add a timeout to stop scanning after a certain period
-        setTimeout(() => {
-            html5Qrcode.stop().then((ignore) => {
-                // QR Code successfully stopped.
-            }).catch((err) => {
-                // Failed to stop the scanner
-                console.error(err);
-            });
-        }, 10000); // Stops scanning after 10 seconds
-    });
-</script>
-
+        // 3. 绑定按钮点击事件
+        scanButton.addEventListener("click", async () => {
+            try {
+                // 启动摄像头扫描
+                await html5QrCode.start(
+                    { facingMode: "environment" }, // 优先使用后置摄像头
+                    { fps: 10, qrbox: 250 },
+                    (decodedText) => {
+                        // 扫描成功回调
+                        resultDiv.innerHTML = `扫描结果: ${decodedText}`;
+                        html5QrCode.stop(); // 扫描成功后停止
+                    }
+                );
+                scanButton.textContent = "停止扫描";
+            } catch (error) {
+                resultDiv.innerHTML = `错误: ${error}`;
+            }
+        });
+    </script>
 </body>
 </html>
-
-
-
