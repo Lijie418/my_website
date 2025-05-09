@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>滤棒入库管理系统</title>
+    <!-- 引入 Html5-QRCode 库 -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      #qr-reader {
+        width: 100%;
+        max-width: 400px;
+        margin: 20px auto;
+      }
+      #scan-button,
+      #confirm-button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin: 10px 5px;
+      }
+      #result,
+      #spec-info,
+      #input-fields {
+        margin-top: 20px;
+        font-size: 16px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      input {
+        padding: 8px;
+        margin: 5px 0;
+        width: 200px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>滤棒入库管理系统</h1>
+
+    <div>
+      <button id="storage-button">入库功能</button>
+    </div>
+
+    <div id="storage-section" class="hidden">
+      <div id="qr-reader"></div>
+      <button id="scan-button">开始扫描</button>
+      <div id="result">等待扫描二维码...</div>
+
+      <div id="spec-info" class="hidden">
+        <h3>规格信息</h3>
+        <div id="spec-details"></div>
+      </div>
+
+      <div id="input-fields" class="hidden">
+        <h3>入库信息</h3>
+        <div>
+          <label>滤棒格数:</label>
+          <input type="number" id="quantity" min="1" />
+        </div>
+        <div>
+          <label>入库日期:</label>
+          <input type="date" id="storage-date" />
+        </div>
+        <button id="confirm-button">确认入库</button>
+      </div>
+    </div>
+
+    <script>
+      // 获取DOM元素
+      const storageButton = document.getElementById("storage-button");
+      const storageSection = document.getElementById("storage-section");
+      const scanButton = document.getElementById("scan-button");
+      const resultDiv = document.getElementById("result");
+      const specInfo = document.getElementById("spec-info");
+      const specDetails = document.getElementById("spec-details");
+      const inputFields = document.getElementById("input-fields");
+      const confirmButton = document.getElementById("confirm-button");
+      const quantityInput = document.getElementById("quantity");
+      const dateInput = document.getElementById("storage-date");
+
+      // 设置默认日期为今天
+      dateInput.valueAsDate = new Date();
+
+      // 模拟规格数据库
+      const specDatabase = {
+        "FB-001": {
+          name: "A型滤棒",
+          length: "100mm",
+          diameter: "7.8mm",
+          material: "醋酸纤维",
+        },
+        "FB-002": {
+          name: "B型滤棒",
+          length: "120mm",
+          diameter: "8.0mm",
+          material: "聚丙烯",
+        },
+      };
+
+      // 初始化扫描器
+      const html5QrCode = new Html5Qrcode("qr-reader");
+
+      // 进入入库功能
+      storageButton.addEventListener("click", () => {
+        storageSection.classList.remove("hidden");
+      });
+
+      // 扫描二维码
+      scanButton.addEventListener("click", async () => {
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            (decodedText) => {
+              resultDiv.innerHTML = `扫描成功: ${decodedText}`;
+              html5QrCode.stop();
+
+              // 显示规格信息
+              const spec = specDatabase[decodedText];
+              if (spec) {
+                specDetails.innerHTML = `
+                  <p>名称: ${spec.name}</p>
+                  <p>长度: ${spec.length}</p>
+                  <p>直径: ${spec.diameter}</p>
+                  <p>材料: ${spec.material}</p>
+                `;
+                specInfo.classList.remove("hidden");
+                inputFields.classList.remove("hidden");
+              } else {
+                resultDiv.innerHTML += "<br>未找到该规格信息";
+              }
+            }
+          );
+          scanButton.textContent = "停止扫描";
+        } catch (error) {
+          resultDiv.innerHTML = `错误: ${error}`;
+        }
+      });
+
+      // 确认入库
+      confirmButton.addEventListener("click", () => {
+        const quantity = quantityInput.value;
+        const date = dateInput.value;
+        const record = `入库记录\n\n规格: ${resultDiv.textContent.replace(
+          "扫描成功: ",
+          ""
+        )}\n格数: ${quantity}\n日期: ${date}\n\n生成时间: ${new Date().toLocaleString()}`;
+
+        // 生成TXT文件并下载
+        const blob = new Blob([record], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `入库记录_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+
+        alert("入库记录已生成并下载");
+      });
+    </script>
+  </body>
+</html>
