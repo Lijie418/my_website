@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>滤棒出库管理系统</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      #qr-reader {
+        width: 100%;
+        max-width: 400px;
+        margin: 20px auto;
+      }
+      #scan-button,
+      #confirm-button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin: 10px 5px;
+      }
+      #result,
+      #spec-info,
+      #input-fields {
+        margin-top: 20px;
+        font-size: 16px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      input {
+        padding: 8px;
+        margin: 5px 0;
+        width: 200px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>滤棒平库管理系统</h1>
+
+    <div>
+      <button id="outbound-button">开始出库</button>
+    </div>
+
+    <div id="outbound-type" class="hidden">
+      <h3>出库类型</h3>
+      <select id="type-select">
+        <option value="" selected disabled>请选择出库类型</option>
+        <option value="转储至高架库">转储至高架库</option>
+        <option value="拉料至卷烟机">拉料至卷烟机</option>
+        <option value="拉料至发送机">拉料至发送机</option>
+      </select>
+    </div>
+
+    <div id="station-select" class="hidden">
+      <h3>目标机台</h3>
+      <select id="station-list">
+        <!-- 选项将通过JS动态生成 -->
+      </select>
+      <div id="machine-spec-info" style="margin-top: 10px;"></div>
+    </div>
+
+
+    <div id="outbound-section" class="hidden">
+      <div id="qr-reader"></div>
+      <button id="scan-button">开始扫描</button>
+      <div id="result">等待扫描二维码...</div>
+
+      <div id="spec-info" class="hidden">
+        <h3>规格信息</h3>
+        <div id="spec-details"></div>
+      </div>
+
+      <div id="input-fields" class="hidden">
+        <h3>出库信息</h3>
+        <div>
+          <label>滤棒格数:</label>
+          <input type="number" id="quantity" min="1" />
+        </div>
+        <div>
+          <label>出库日期:</label>
+          <input type="date" id="outbound-date" />
+        </div>
+        <button id="confirm-button">确认出库</button>
+      </div>
+    </div>
+
+    <script>
+      // 获取DOM元素
+      const outboundButton = document.getElementById("outbound-button");
+      const outboundSection = document.getElementById("outbound-section");
+      const scanButton = document.getElementById("scan-button");
+      const resultDiv = document.getElementById("result");
+      const specInfo = document.getElementById("spec-info");
+      const specDetails = document.getElementById("spec-details");
+      const inputFields = document.getElementById("input-fields");
+      const confirmButton = document.getElementById("confirm-button");
+      const quantityInput = document.getElementById("quantity");
+      const dateInput = document.getElementById("outbound-date");
+      const typeSelect = document.getElementById("type-select");
+      const outboundType = document.getElementById("outbound-type");
+      const stationSelect = document.getElementById("station-select");
+      const stationList = document.getElementById("station-list");
+
+      // 设置默认日期为今天
+      dateInput.valueAsDate = new Date();
+
+      // 模拟扫描函数（可替换为真实的二维码扫描逻辑）
+      function mockScan() {
+        const mockQRCodes = ["LBCX4001"];
+        const randomIndex = Math.floor(Math.random() * mockQRCodes.length);
+        const mockData = mockQRCodes[randomIndex];
+        fetchSpec(mockData);
+      }
+
+      outboundButton.addEventListener("click", () => {
+        outboundSection.classList.remove("hidden");
+        outboundType.classList.remove("hidden");
+        document.getElementById("machine-spec-info").innerHTML = ""; // 新增：清空机台规格显示
+      });
+
+      function resetToInitialState() {
+        outboundSection.classList.add("hidden");
+            outboundType.classList.add("hidden");
+            stationSelect.classList.add("hidden");
+            stationList.innerHTML = ""; // 清空现有选项
+            resultDiv.innerHTML = "等待扫描二维码...";
+            specInfo.classList.add("hidden");
+            inputFields.classList.add("hidden");
+            quantityInput.value = "";
+            dateInput.valueAsDate = new Date();
+            typeSelect.selectedIndex = 0;
+            document.getElementById("machine-spec-info").innerHTML = ""; // 新增：清空机台规格显示
+      }
+
+      // 从后端获取规格信息
+      async function fetchSpec(specCode) {
+        try {
+          // 先检查机台是否已选择
+          const stationId = stationList.value;
+          if (!stationId) {
+            alert("请先选择目标机台");
+            return;
+          }
+
+          // 立即进行本地规格验证 仅验证前6位
+          const allowedSpec = machineSpecMap[stationId];
+          if (allowedSpec && allowedSpec.substring(0,6) !== specCode.substring(0,6)) {
+            alert(`滤棒规格不匹配！\n\n当前扫码规格: ${specCode}\n机台 ${stationId} 仅允许 ${allowedSpec} 规格`);
+            resetToInitialState();
+            return;
+          }
+
+          // 规格匹配后再从后端获取详细信息
+          const response = await fetch(
+            `http://localhost:8000/api/spec/${specCode}`
+          );
+          const data = await response.json();
+
+          resultDiv.innerHTML = `扫描结果: ${specCode}`;
+
+          if (response.ok) {
+            specDetails.innerHTML = `
+          <p>名称: ${data.Name}</p>
+          <p>粗细: ${data.size}</p>
+          <p>满盘格数: ${data.num}</p>
+        `;
+            specInfo.classList.remove("hidden");
+            inputFields.classList.remove("hidden");
+            // 根据出库类型显示或隐藏格数输入
+            const outboundType = typeSelect.value;
+            if (outboundType !== "拉料至卷烟机") {
+              quantityInput.value = data.num; // 非拉料类型设为满盘格数
+            } else {
+              quantityInput.value = ""; // 拉料类型为空
+            }
+          } else {
+            resultDiv.innerHTML += "<br>未找到该规格信息";
+          }
+        } catch (err) {
+          resultDiv.innerHTML += "<br>无法连接到服务器";
+          console.error(err);
+        }
+      }
+
+      // 进入出库功能
+      outboundButton.addEventListener("click", () => {
+        outboundSection.classList.remove("hidden");
+      });
+
+      // 扫描二维码
+      scanButton.addEventListener("click", () => {
+        mockScan();
+      });
+
+      // 从后端获取机台规格对应关系   
+      let machineSpecMap = {}; // 初始为空对象
+      async function fetchMachineSpecMap() {
+        try {
+          const response = await fetch("http://localhost:8000/api/machine-specs");
+          if (response.ok) {
+            machineSpecMap = await response.json();
+            console.log("获取的机台规格映射:", machineSpecMap);
+          }
+        } catch (err) {
+          console.error("获取机台规格失败:", err);
+        }
+      }
+
+      // 页面加载时获取机台规格
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchMachineSpecMap();
+      });
+
+      // 新增机台选择事件监听
+      stationList.addEventListener("change", (e) => {
+        showMachineSpec(e.target.value);
+      });
+
+      // 修改出库类型选择事件
+      typeSelect.addEventListener("change", () => {
+        const stationList = document.getElementById("station-list");
+        stationList.innerHTML = '<option value="" selected disabled>请选择机台</option>'; // 清空现有选项
+        
+        if(!machineSpecMap || Object.keys(machineSpecMap).length === 0) {
+          console.error("机台规格数据未加载");
+          return;
+        }
+        
+        if(typeSelect.value === "转储至高架库") {
+          stationSelect.classList.remove("hidden");
+          // 添加人工站台选项(1开头)
+          Object.keys(machineSpecMap).forEach(key => {
+            if(key.startsWith('1')) {
+              stationList.innerHTML += `<option value="${key}">${key}</option>`;
+            }
+          });
+        } 
+        else if(typeSelect.value === "拉料至卷烟机") {
+          stationSelect.classList.remove("hidden");
+          // 添加卷烟机选项(P开头)
+          Object.keys(machineSpecMap).forEach(key => {
+            if(key.startsWith('P')) {
+              stationList.innerHTML += `<option value="${key}">${key}</option>`;
+            }
+          });
+        }
+        else if(typeSelect.value === "拉料至发送机") {
+          stationSelect.classList.remove("hidden");
+          // 添加发送机选项(F开头)
+          Object.keys(machineSpecMap).forEach(key => {
+            if(key.startsWith('F')) {
+              stationList.innerHTML += `<option value="${key}">${key}</option>`;
+            }
+          });
+        }
+        else {
+          stationSelect.classList.add("hidden");
+        }
+      });
+
+      // 新增机台规格显示函数
+      function showMachineSpec(machineId) {
+        const spec = machineSpecMap[machineId];
+        const specInfo = document.getElementById("machine-spec-info");
+        if (specInfo && spec) {
+          specInfo.innerHTML = `
+            <h4> ${machineId} 对应滤棒规格:</h4>
+            <ul>
+              <li>${spec}</li>
+            </ul>
+          `;
+        }
+      }
+
+      // 确认出库
+      confirmButton.addEventListener("click", async () => {
+        const quantity = quantityInput.value;
+        const date = dateInput.value;
+        const specCode = resultDiv.textContent.replace("扫描结果: ", "");
+        const outboundTypeValue = typeSelect.value;
+        const stationId = stationList.value
+
+          // 获取机台允许的规格列表
+        const allowedSpecs = machineSpecMap[stationId];
+      
+
+        try {
+          const response = await fetch("http://localhost:8000/api/outbound", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              specCode,
+              quantity,
+              outboundDate: date,
+              outboundType: outboundTypeValue,
+              stationId: stationId
+            }),
+          });
+          const data = await response.json();
+
+          if (response.ok) {
+            alert(
+              `出库已完成！\n\n` +
+              `规格: ${specCode}\n` +
+              `格数: ${quantity}\n` +
+              `日期: ${date}\n` +
+              `操作类型: 出库\n` +
+              `出库类型: ${outboundTypeValue}\n` +
+              (stationId ? `目标机台: ${stationId}` : '')
+            );
+            // 重置界面
+            resetToInitialState();
+          } else {
+            // 修改错误提示部分
+            let errorMsg = "出库失败";
+            if (data.detail) {
+              errorMsg += `: ${data.detail}`;
+            }
+            if (data.sqlError) {
+              errorMsg += `\n数据库错误: ${data.sqlError}`;
+            }
+            alert(errorMsg);
+          }
+        } catch (err) {
+          alert(`无法连接到服务器: ${err.message}`);
+          console.error(err);
+        }
+      });
+
+
+    </script>
+  </body>
+</html>
